@@ -100,37 +100,38 @@ Screenshots included to demonstrate packet-level behavior.
 To deeply understand and verify Nmap's stealth scanning behavior, a live packet capture was conducted during the scan execution. Below is a forensic breakdown of the network traffic observed across the wire.
 
 ### 1. The Stealth Probing Phase (Outbound Traffic)
-(Screenshot/screenshot3.png)
-As shown in **screenshot3.png**, the scanning host (`192.168.1.9`) initiated the sequence by systematically distributing standard **TCP SYN** packets (`tcp.flags.syn==1`) to various ports across target devices (e.g., `192.168.1.1`, `192.168.1.3`, and `192.168.1.6`). 
+The scanning host (`192.168.1.9`) initiated the sequence by systematically distributing standard **TCP SYN** packets (`tcp.flags.syn==1`) to various ports across target devices.
 
-* **Behavior:** Notice that Nmap randomizes or rapidly cycles through the ports and target hosts to avoid triggering basic threshold-based network alarms.
+![Stealth Probing Traffic](Screenshots/screenshot3.png)
+
+* **Behavior:** As visualized in the capture above, Nmap randomizes or rapidly cycles through the ports and target hosts to avoid triggering basic threshold-based network alarms.
 * **Handshake Intent:** At this point, no connection has been established; our host is simply asking targets if they are ready to synchronize.
 
 ### 2. Identifying Closed Ports (The Reset Response)
-When Nmap targets a port that is not hosting any service, the target machine is RFC-compliant and immediately drops the connection attempt. This is captured perfectly in **screenshot2.png**:
+When Nmap targets a port that is not hosting any service, the target machine is RFC-compliant and immediately drops the connection attempt. 
+
+![Closed Ports Reset Traffic](Screenshots/screenshot2.png)
 
 * **Analysis:** Our host (`192.168.1.9`) attempts to probe various ports on the gateway and other targets.
-* **The Response:** The target machine instantly replies with a **`[RST, ACK]`** packet (Reset and Acknowledgment). 
-* **Conclusion:** This tells Nmap definitively that the port is **closed**. The raw logs in **screenshot4.png** match this observation, filtering out hundreds of closed TCP ports per host.
+* **The Response:** As highlighted in red, the target machine instantly replies with a **`[RST, ACK]`** packet (Reset and Acknowledgment). 
+* **Conclusion:** This tells Nmap definitively that the port is **closed**, matching our terminal logs.
 
 ### 3. Identifying Open Ports (The Half-Open Success)
-The breakthrough of the reconnaissance phase occurs when a target responds favorably. By applying the display filter `tcp.flags.syn == 1 && tcp.flags.ack == 1` in **screenshot1.png**, we can see only the successful hits:
+The breakthrough of the reconnaissance phase occurs when a target responds favorably. By applying the display filter `tcp.flags.syn == 1 && tcp.flags.ack == 1`, we isolate the open ports:
 
-* **Analysis:** The gateway (`192.168.1.1`) responds with a **`[SYN, ACK]`** from critical service ports such as:
-  * **Port 21** (FTP)
-  * **Port 22** (SSH)
-  * **Port 53** (DNS)
-  * **Port 80** (HTTP)
-* **The "Stealth" Mechanism:** Immediately after receiving these `[SYN, ACK]` packets, Nmap's raw socket engine sends a **`[RST]`** packet (visible in the stream logs) to break the connection before the 3-way handshake finishes. This avoids triggering an application-level login log on the router, confirming the port is **open** while maintaining a lower profile.
+![Open Ports Filtered Traffic](Screenshots/screenshot1.png)
+
+* **Analysis:** The gateway (`192.168.1.1`) responds with a **`[SYN, ACK]`** from critical service ports such as Port 21 (FTP), Port 22 (SSH), Port 53 (DNS), and Port 80 (HTTP).
+* **The "Stealth" Mechanism:** Immediately after receiving these packets, Nmap's raw socket engine sends a **`[RST]`** packet to break the connection before the 3-way handshake finishes. This avoids triggering an application-level login log on the router.
 
 ---
 
 ## 📸 Technical Verification Artifacts
-The execution truth has been verified across both the command line interface and network layer captures:
-* **Command Output Evidence:** **screenshot4.png** documents the final summary where Nmap accurately processes these handshakes to output the 4 active hosts and their corresponding service states.
-* **Traffic Evidence:** **screenshot1.png**, **screenshot2.png**, and **screenshot3.png** validate the raw behavioral mechanics of the `-sS` flag on the wire.
+The execution truth has been verified across both the command line interface and network layer captures. The final output summary below documents the 4 active hosts and their corresponding service states:
 
-📄 Outcome:
+![Nmap CLI Terminal Scan Results](Screenshots/screenshot4.png)
+
+📄 Outcome:-
 
 1.Learned how to perform network reconnaissance using Nmap.
 
